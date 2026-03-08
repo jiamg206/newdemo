@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  photon-studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: photon-studio
+    ports:
+      - "8080:80"
+    restart: unless-stopped
