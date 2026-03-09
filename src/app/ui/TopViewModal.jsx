@@ -27,7 +27,6 @@ export function TopViewModal({ open, onClose, onDownload, sceneProps }) {
             gl={{
               antialias: true,
               toneMapping: ACESFilmicToneMapping,
-              toneMappingExposure: 1,
               outputColorSpace: SRGBColorSpace,
               useLegacyLights: false,
             }}

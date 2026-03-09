@@ -1,7 +1,7 @@
 import { ContactShadows, OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { DepthOfField, EffectComposer } from '@react-three/postprocessing'
+import { EffectComposer } from '@react-three/postprocessing'
 import { CameraRig, PhysicalCameraManager, SceneBoundaries, SceneFlags, SceneRulers } from './SceneHelpers'
 import { SubjectActor } from './SubjectActor'
 import { StudioLight } from './LightRig'
@@ -32,13 +32,13 @@ export function StudioScene({
   giEnabled,
   diffuseEnabled,
   highQuality,
-  enableCameraDof = true,
   sceneSettings,
   showRulers = false,
   flags,
   updateFlag,
   setSubject,
   showSubjectControlFrame = true,
+  postFxQuality = 'high',
 }) {
   const cameraRef = useRef(null)
   const { size } = useThree()
@@ -47,15 +47,6 @@ export function StudioScene({
     const safeFocal = Math.max(1e-3, Number(focalLength) || 50)
     return 2 * Math.atan(sensorHeight / (2 * safeFocal)) * (180 / Math.PI)
   }, [focalLength])
-  const dof = useMemo(() => {
-    const safeAperture = Math.max(1.4, Number(aperture) || 5.6)
-    const strength = Math.min(2.2, Math.max(0.65, 2.8 / safeAperture))
-    return {
-      focalLength: 0.012 + strength * 0.008,
-      bokehScale: 1.15 + strength * 1.35,
-    }
-  }, [aperture])
-  const enableDoF = viewMode === 'camera' && enableCameraDof
 
   useEffect(() => {
     if (viewMode !== 'camera' || !cameraRef.current) return
@@ -183,8 +174,8 @@ export function StudioScene({
         />
       ))}
 
-      {viewMode !== 'top' && (giEnabled || diffuseEnabled || enableDoF || highQuality) ? (
-        <EffectComposer>
+      {viewMode !== 'top' && (giEnabled || diffuseEnabled) ? (
+        <EffectComposer multisampling={viewMode === 'studio' ? (postFxQuality === 'balanced' ? 0 : 2) : 2}>
           <SSGI
             distance={10}
             thickness={10}
@@ -192,14 +183,8 @@ export function StudioScene({
             blend={0.9}
             enableGI={giEnabled}
             enableDiffuse={diffuseEnabled}
+            quality={postFxQuality}
           />
-          {enableDoF || highQuality ? (
-            <DepthOfField
-              focusDistance={0.018}
-              focalLength={highQuality ? dof.focalLength * 1.03 : dof.focalLength}
-              bokehScale={highQuality ? dof.bokehScale * 1.1 : dof.bokehScale}
-            />
-          ) : null}
         </EffectComposer>
       ) : null}
     </>

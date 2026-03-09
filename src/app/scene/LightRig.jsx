@@ -10,6 +10,10 @@ import { CTO_LEVELS, POWER_VALUES } from '../config/constants'
 import { useManipulator } from '../hooks/useManipulator'
 import { clamp, findAccessory, findModifier, getLookRotation, kelvinToRgb } from '../utils/lightingMath'
 
+const CONTINUOUS_INTENSITY_PER_W = 36
+const FLASH_INTENSITY_PER_WS = 10
+const MODELING_INTENSITY_PER_W = 18
+
 function createRectGobo(
   width = 1.2,
   height = 0.8,
@@ -460,8 +464,9 @@ export function StudioLight({
   subjectPos,
   interactive = true,
 }) {
+  const isSelected = interactive && selected?.type === 'light' && selected?.id === light.id
   const handlers = useManipulator(light, (patch) => updateLight(light.id, patch), setDragging, {
-    enabled: interactive && selected?.type === 'light' && selected?.id === light.id,
+    enabled: isSelected,
     wheelMode: 'height',
     minY: 0.2,
     maxY: Infinity,
@@ -519,8 +524,11 @@ export function StudioLight({
   const continuousW = light.mode === 'continuous' ? (light.continuousW ?? maxWs) * powerFactor : 0
   const isTargetedFlash = !Array.isArray(flashTargets) || flashTargets.length === 0 || flashTargets.includes(light.id)
   const flashPulseWs = light.mode === 'flash' && isFlashing && isTargetedFlash ? flashWs : 0
-  const totalOutput = continuousW + flashPulseWs + modelingW
-  const intensity = light.enabled ? totalOutput * transmission * 36 * lightProfile.intensityMul : 0
+  const totalIntensityBase =
+    continuousW * CONTINUOUS_INTENSITY_PER_W +
+    flashPulseWs * FLASH_INTENSITY_PER_WS +
+    modelingW * MODELING_INTENSITY_PER_W
+  const intensity = light.enabled ? totalIntensityBase * transmission * lightProfile.intensityMul : 0
   const colorTemp = hasCTO ? Math.max(2200, light.colorTemp - cto.kelvinShift) : light.colorTemp
   const color = kelvinToRgb(colorTemp)
   const rotation = lightLockSubject ? getLookRotation(light.position, subjectPos) : light.rotation
@@ -543,7 +551,19 @@ export function StudioLight({
 
       {light.showGuide ? <LightDirectionGuide profile={lightProfile} distance={guideDistance} /> : null}
 
-      {interactive ? (
+      {interactive && !isSelected ? (
+        <mesh
+          onClick={(e) => {
+            e.stopPropagation()
+            setSelected({ type: 'light', id: light.id })
+          }}
+        >
+          <boxGeometry args={[1.9, 1.2, 1.2]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      ) : null}
+
+      {isSelected ? (
         <mesh
           onClick={(e) => {
             e.stopPropagation()
@@ -551,13 +571,6 @@ export function StudioLight({
           }}
           {...handlers}
         >
-          <boxGeometry args={[1.9, 1.2, 1.2]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-      ) : null}
-
-      {selected?.type === 'light' && selected?.id === light.id && interactive ? (
-        <mesh>
           <boxGeometry args={[1.5, 1, 0.4]} />
           <meshBasicMaterial color="#22d3ee" wireframe />
         </mesh>

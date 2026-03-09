@@ -219,12 +219,13 @@ export function SceneRulers({ enabled, subject, lights, cam }) {
 }
 
 export function CameraRig({ cam, selected, setSelected, setCam, setDragging, visible = true, interactive = true }) {
+  const isSelected = interactive && selected?.type === 'camera' && selected?.id === 'camera'
   const handlers = useManipulator(
     cam,
     (patch) => setCam((prev) => ({ ...prev, ...patch })),
     setDragging,
     {
-      enabled: interactive && selected?.type === 'camera' && selected?.id === 'camera',
+      enabled: isSelected,
       wheelMode: 'height',
       minY: 0.2,
       maxY: 6,
@@ -243,7 +244,20 @@ export function CameraRig({ cam, selected, setSelected, setCam, setDragging, vis
         <meshStandardMaterial color="#232935" roughness={0.34} metalness={0.62} />
       </mesh>
 
-      {interactive ? (
+      {interactive && !isSelected ? (
+        <mesh
+          position={[0, 0.15, 0]}
+          onClick={(e) => {
+            e.stopPropagation()
+            setSelected({ type: 'camera', id: 'camera' })
+          }}
+        >
+          <boxGeometry args={[0.95, 1.2, 0.95]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+      ) : null}
+
+      {isSelected ? (
         <mesh
           position={[0, 0.15, 0]}
           onClick={(e) => {
@@ -252,13 +266,6 @@ export function CameraRig({ cam, selected, setSelected, setCam, setDragging, vis
           }}
           {...handlers}
         >
-          <boxGeometry args={[0.95, 1.2, 0.95]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-      ) : null}
-
-      {selected?.type === 'camera' && interactive ? (
-        <mesh position={[0, 0.15, 0]}>
           <boxGeometry args={[0.58, 0.38, 0.32]} />
           <meshBasicMaterial color="#22d3ee" wireframe />
         </mesh>

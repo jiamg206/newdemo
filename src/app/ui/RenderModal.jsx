@@ -50,7 +50,6 @@ export function RenderModal({
                 antialias: true,
                 preserveDrawingBuffer: true,
                 toneMapping: ACESFilmicToneMapping,
-                toneMappingExposure: 1,
                 outputColorSpace: SRGBColorSpace,
                 useLegacyLights: false,
               }
@@ -59,6 +58,7 @@ export function RenderModal({
           >
             <StudioScene {...sceneProps} viewMode="camera" interactive={false} highQuality={advancedQuality} />
             <CaptureBridge
+              toneMappingExposure={sceneProps?.toneMappingExposure}
               onReady={(fn) => {
                 if (capture4kRef) capture4kRef.current = fn
               }}

@@ -126,8 +126,11 @@ export default function App() {
   const [showTopView, setShowTopView] = useState(false)
   const [newAccessoryId, setNewAccessoryId] = useState(ACCESSORIES[0].id)
   const [collapsed, setCollapsed] = useState({})
-  const [isFlashing, setIsFlashing] = useState(false)
-  const [flashTargets, setFlashTargets] = useState(null)
+  const [flashPulse, setFlashPulse] = useState({
+    active: false,
+    targets: null,
+    stamp: 0,
+  })
   const [isSavingRender, setIsSavingRender] = useState(false)
 
   const gallery = useLocalRenders()
@@ -148,7 +151,6 @@ export default function App() {
       antialias: true,
       preserveDrawingBuffer: true,
       toneMapping: ACESFilmicToneMapping,
-      toneMappingExposure: 1,
       outputColorSpace: SRGBColorSpace,
       useLegacyLights: false,
     }),
@@ -159,27 +161,24 @@ export default function App() {
     (useDiffuse) =>
       computeSceneBounceBrightness({
         lights,
-        isFlashing,
-        flashTargets,
+        isFlashing: flashPulse.active,
+        flashTargets: flashPulse.targets,
         sceneSettings,
         envBrightness,
         diffuseEnabled: useDiffuse,
       }),
-    [envBrightness, flashTargets, isFlashing, lights, sceneSettings],
+    [envBrightness, flashPulse.active, flashPulse.targets, lights, sceneSettings],
   )
 
   const bouncedEnvBrightness = useMemo(
     () => calcBouncedEnvBrightness(diffuseEnabled),
     [calcBouncedEnvBrightness, diffuseEnabled],
   )
-  const renderEnvBrightness = useMemo(
-    () => calcBouncedEnvBrightness(true),
-    [calcBouncedEnvBrightness],
-  )
   const pipEnvBrightness = useMemo(
     () => calcBouncedEnvBrightness(false),
     [calcBouncedEnvBrightness],
   )
+  const mainPostFxHeavy = giEnabled && diffuseEnabled
 
   const updateLight = (id, patch) => {
     const normalizedPatch = normalizeLightPatch(patch)
@@ -223,8 +222,8 @@ export default function App() {
     setDragging,
     envBrightness: bouncedEnvBrightness,
     lockView: dragging,
-    isFlashing,
-    flashTargets,
+    isFlashing: flashPulse.active,
+    flashTargets: flashPulse.targets,
     lightLockSubject,
     giEnabled,
     diffuseEnabled,
@@ -235,12 +234,12 @@ export default function App() {
     setSubject,
     showSubjectControlFrame: true,
   }
-  const cameraOutputSceneProps = {
+  const renderSceneProps = {
     ...sceneProps,
-    envBrightness: renderEnvBrightness,
-    giEnabled: true,
-    diffuseEnabled: true,
-    enableCameraDof: true,
+    // Keep render preview aligned with the same active lighting baseline.
+    envBrightness: bouncedEnvBrightness,
+    giEnabled,
+    diffuseEnabled,
     showRulers: false,
     showSubjectControlFrame: false,
     selected: { type: 'none', id: '' },
@@ -253,7 +252,6 @@ export default function App() {
     envBrightness: pipEnvBrightness,
     giEnabled: false,
     diffuseEnabled: false,
-    enableCameraDof: false,
     showRulers: false,
     showSubjectControlFrame: false,
     selected: { type: 'none', id: '' },
@@ -276,13 +274,16 @@ export default function App() {
   )
 
   useEffect(() => {
-    if (!isFlashing) return undefined
+    if (!flashPulse.active) return undefined
     const id = setTimeout(() => {
-      setIsFlashing(false)
-      setFlashTargets(null)
+      setFlashPulse((prev) => ({
+        ...prev,
+        active: false,
+        targets: null,
+      }))
     }, FLASH_MS)
     return () => clearTimeout(id)
-  }, [isFlashing])
+  }, [flashPulse.active, flashPulse.stamp])
 
   useEffect(
     () => () => {
@@ -356,8 +357,12 @@ export default function App() {
   const removeFlag = (id) => setFlags((prev) => prev.filter((flag) => flag.id !== id))
 
   const startFlashPulse = (targets = null) => {
-    setFlashTargets(Array.isArray(targets) ? targets : null)
-    setIsFlashing(true)
+    const normalizedTargets = Array.isArray(targets) ? [...targets] : null
+    setFlashPulse((prev) => ({
+      active: true,
+      targets: normalizedTargets,
+      stamp: prev.stamp + 1,
+    }))
   }
 
   const triggerShutter = (openRender) => {
@@ -482,17 +487,22 @@ export default function App() {
         <section className="relative flex-1 bg-zinc-900">
           <Canvas
             shadows
-            dpr={[1, 2]}
+            dpr={mainPostFxHeavy ? [1, 1.35] : [1, 2]}
             gl={{
               antialias: true,
               toneMapping: ACESFilmicToneMapping,
-              toneMappingExposure: 1,
               outputColorSpace: SRGBColorSpace,
               useLegacyLights: false,
             }}
             className="h-full w-full"
           >
-            <StudioScene {...sceneProps} viewMode="studio" interactive highQuality={false} />
+            <StudioScene
+              {...sceneProps}
+              viewMode="studio"
+              interactive
+              highQuality={false}
+              postFxQuality={mainPostFxHeavy ? 'balanced' : 'high'}
+            />
           </Canvas>
 
           <div className="pointer-events-none absolute left-4 top-4 z-20 rounded-lg border border-zinc-700 bg-zinc-950/85 px-3 py-2 text-[11px] text-zinc-400">
@@ -520,6 +530,7 @@ export default function App() {
                   interactive={false}
                   highQuality={false}
                   lockView={false}
+                  postFxQuality="balanced"
                 />
               </Canvas>
             </div>
@@ -556,7 +567,8 @@ export default function App() {
         capture4kRef={capture4kRef}
         cameraCanvasGl={cameraViewGl}
         sceneProps={{
-          ...cameraOutputSceneProps,
+          ...renderSceneProps,
+          postFxQuality: mainPostFxHeavy ? 'balanced' : 'high',
         }}
       />
 
