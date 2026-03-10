@@ -174,10 +174,6 @@ export default function App() {
     () => calcBouncedEnvBrightness(diffuseEnabled),
     [calcBouncedEnvBrightness, diffuseEnabled],
   )
-  const pipEnvBrightness = useMemo(
-    () => calcBouncedEnvBrightness(false),
-    [calcBouncedEnvBrightness],
-  )
   const mainPostFxHeavy = giEnabled && diffuseEnabled
 
   const updateLight = (id, patch) => {
@@ -249,9 +245,9 @@ export default function App() {
   }
   const pipSceneProps = {
     ...sceneProps,
-    envBrightness: pipEnvBrightness,
-    giEnabled: false,
-    diffuseEnabled: false,
+    envBrightness: bouncedEnvBrightness,
+    giEnabled,
+    diffuseEnabled,
     showRulers: false,
     showSubjectControlFrame: false,
     selected: { type: 'none', id: '' },
@@ -520,7 +516,7 @@ export default function App() {
             <div className="aspect-[3/2] w-full">
               <Canvas
                 shadows
-                dpr={[1, 1.5]}
+                dpr={mainPostFxHeavy ? [1, 1.2] : [1, 1.5]}
                 gl={cameraViewGl}
                 className="h-full w-full"
               >
@@ -530,7 +526,7 @@ export default function App() {
                   interactive={false}
                   highQuality={false}
                   lockView={false}
-                  postFxQuality="balanced"
+                  postFxQuality={mainPostFxHeavy ? 'balanced' : 'high'}
                 />
               </Canvas>
             </div>

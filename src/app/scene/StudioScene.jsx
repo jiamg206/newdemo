@@ -5,6 +5,7 @@ import { EffectComposer } from '@react-three/postprocessing'
 import { CameraRig, PhysicalCameraManager, SceneBoundaries, SceneFlags, SceneRulers } from './SceneHelpers'
 import { SubjectActor } from './SubjectActor'
 import { StudioLight } from './LightRig'
+import { GlobalExposureEffect } from './GlobalExposureEffect'
 import { SSGI } from './SSGI'
 
 export function StudioScene({
@@ -185,6 +186,7 @@ export function StudioScene({
             enableDiffuse={diffuseEnabled}
             quality={postFxQuality}
           />
+          <GlobalExposureEffect exposure={toneMappingExposure} />
         </EffectComposer>
       ) : null}
     </>

@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { useThree } from '@react-three/fiber'
+import { useEffect, useMemo } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
 import { Html, Line } from '@react-three/drei'
 import { useManipulator } from '../hooks/useManipulator'
 import { EXPOSURE_CALIBRATION, computeEV, evToToneMappingExposure } from '../utils/exposureMath'
@@ -12,14 +12,25 @@ export function PhysicalCameraManager({
   toneMappingExposure,
 }) {
   const { gl } = useThree()
-
-  useEffect(() => {
+  const resolvedExposure = useMemo(() => {
     const nextExposure = Number.isFinite(toneMappingExposure)
       ? toneMappingExposure
       : evToToneMappingExposure(computeEV({ aperture, shutterSpeed, iso }), calibration)
+    return Number.isFinite(nextExposure) ? nextExposure : 1
+  }, [aperture, shutterSpeed, iso, calibration, toneMappingExposure])
+
+  useEffect(() => {
     // eslint-disable-next-line react-hooks/immutability -- R3F renderer exposure is imperative state.
-    gl.toneMappingExposure = Number.isFinite(nextExposure) ? nextExposure : 1
-  }, [aperture, shutterSpeed, iso, calibration, gl, toneMappingExposure])
+    gl.toneMappingExposure = resolvedExposure
+  }, [gl, resolvedExposure])
+
+  useFrame(() => {
+    // Composer/effects may override renderer exposure per frame; force-sync each frame.
+    if (Math.abs(gl.toneMappingExposure - resolvedExposure) > 1e-6) {
+      // eslint-disable-next-line react-hooks/immutability -- renderer state is imperative.
+      gl.toneMappingExposure = resolvedExposure
+    }
+  })
 
   return null
 }
